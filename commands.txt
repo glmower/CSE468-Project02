@@ -1,0 +1,57 @@
+sudo iptables -P INPUT DROP
+sudo iptables -P OUTPUT DROP
+sudo iptables -P FORWARD DROP
+
+sudo sysctl -w net.ipv4.ip_forward=1
+sudo iptables -t nat -A POSTROUTING -o enp0s10 -j MASQUERADE
+sudo iptables -t nat -A POSTROUTING -o enp0s9 -j MASQUERADE
+sudo iptables -A FORWARD -i enp0s9 -o enp0s10 -j ACCEPT
+sudo iptables -A FORWARD -i enp0s10 -o enp0s9 -j ACCEPT
+sudo tcpdump -i enp0s9 -n -v src 192.168.0.100 // GatewayVM
+ping 192.168.0.10 // ServerVM
+sudo iptables -D FORWARD -i enp0s9 -o enp0s10 -j ACCEPT
+sudo iptables -D FORWARD -i enp0s10 -o enp0s9 -j ACCEPT
+
+ip neighbor show dev enp0s10
+sudo iptables -t nat -A PREROUTING -i enp0s9 -p tcp --dport 80 -j DNAT --to-destination 10.0.0.10:80
+sudo iptables -A FORWARD -i enp0s9 -o enp0s10 -p tcp --dport 80 -j ACCEPT
+sudo iptables -A FORWARD -i enp0s10 -o enp0s9 -p tcp --sport 80 -j ACCEPT
+curl http://192.168.0.100
+
+sudo iptables -t nat -A PREROUTING -i enp0s9 -p tcp --dport 21 -j DNAT --to-destination 10.0.0.10:21
+sudo iptables -t nat -A PREROUTING -i enp0s9 -p tcp --dport 30000:30099 -j DNAT --to-destination 10.0.0.10:30000-30099
+sudo iptables -A FORWARD -i enp0s9 -o enp0s10 -p tcp --dport 21 -j ACCEPT
+sudo iptables -A FORWARD -i enp0s10 -o enp0s9 -p tcp --sport 21 -j ACCEPT
+sudo iptables -A FORWARD -i enp0s9 -o enp0s10 -p tcp --dport 30000:30099 -j ACCEPT
+sudo iptables -A FORWARD -i enp0s10 -o enp0s9 -p tcp --sport 30000:30099 -j ACCEPT
+ftp -p 192.168.0.100
+ls
+
+sudo iptables -A INPUT -i enp0s9 -p icmp --icmp-type echo-request -j ACCEPT
+sudo iptables -A OUTPUT -o enp0s9 -p icmp --icmp-type echo-reply -j ACCEPT
+ping 192.168.0.100 // ClientVM
+
+sudo iptables -A INPUT -i enp0s10 -p icmp --icmp-type echo-request -j ACCEPT
+sudo iptables -A OUTPUT -o enp0s10 -p icmp --icmp-type echo-reply -j ACCEPT
+sudo iptables -A FORWARD -i enp0s10 -o enp0s9 -p icmp --icmp-type echo-request -j ACCEPT
+sudo iptables -A FORWARD -i enp0s9 -o enp0s10 -p icmp --icmp-type echo-reply -j ACCEPT
+ping 10.0.0.100 // ServerVM
+ping 192.168.0.10 // ServerVM
+
+sudo netfilter-persistent save
+
+sudo nmap -sT -p- 192.168.0.100
+sudo nmap -sU -p- 192.168.0.100
+ping 8.8.8.8
+ping 192.168.0.100
+ping 10.0.0.10
+
+sudo nmap -sT -p- 10.0.0.100
+sudo nmap -sU -p- 10.0.0.100
+ping 8.8.8.8
+ping 10.0.0.100
+ping 192.168.0.10
+
+ping 8.8.8.8
+ping 192.168.0.10
+ping 10.0.0.10
